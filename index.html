@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Water Sort Puzzle - Final Version</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --tube-width: 55px;
+      --tube-height: 220px; 
+      --border-width: 4px;
+      --primary-color: #a29bfe;
+      --bg-color: #2d3436;
+      --text-color: #ffffff;
+      --tube-border-color: #b2bec3;
+      --tube-bg-color: rgba(255, 255, 255, 0.1);
+      --modal-bg: #485460;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      user-select: none;
+      overflow: hidden;
+      background-color: var(--bg-color);
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill-opacity='0.1' fill='%234a4a4a'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .game-screen {
+      width: 100vw; height: 100vh; display: flex; flex-direction: column;
+      justify-content: space-between; padding: 15px 10px; box-sizing: border-box;
+    }
+
+    .header {
+        display: flex; justify-content: space-between; align-items: center; padding: 0 10px;
+    }
+    .header .level-display { color: var(--text-color); font-size: 1.8em; font-weight: 700; white-space: nowrap; }
+    .header .controls, .header .game-info { display: flex; align-items: center; gap: 10px; }
+    
+    .control-btn {
+        position: relative;
+        width: 45px; height: 45px; background-color: var(--primary-color);
+        border: none; border-radius: 12px; color: var(--text-color); font-size: 1.6em;
+        cursor: pointer; display: flex; justify-content: center; align-items: center;
+        transition: all 0.2s ease;
+    }
+    .control-btn:active:not(.disabled) { transform: scale(0.9); }
+    .control-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+    
+    .uses-left {
+        position: absolute; top: -5px; right: -5px; background-color: #e74c3c;
+        color: white; font-size: 0.5em; font-weight: bold; width: 18px;
+        height: 18px; border-radius: 50%; display: flex; justify-content: center; align-items: center;
+    }
+
+    .coin-display {
+      background-color: rgba(0,0,0,0.2); color: #f1c40f; padding: 5px 15px;
+      border-radius: 20px; font-weight: bold; font-size: 1.2em;
+    }
+    
+    .game-container {
+      flex-grow: 1; display: flex; flex-direction: column; justify-content: center;
+      align-items: center; gap: 30px; padding: 10px 5px; position: relative;
+    }
+
+    .tube-row { display: flex; justify-content: center; align-items: flex-end; gap: 15px; width: 100%; }
+    
+    .test-tube {
+      width: var(--tube-width); height: var(--tube-height); position: relative; cursor: pointer; 
+      border: var(--border-width) solid var(--tube-border-color); border-top: none; 
+      border-radius: 0 0 calc(var(--tube-width) / 2) calc(var(--tube-width) / 2);
+      display: flex; flex-direction: column-reverse; background-color: var(--tube-bg-color);
+      transition: transform 0.3s ease; box-sizing: content-box; 
+    }
+    
+    .test-tube.selected { transform: translateY(-30px) scale(1.1); }
+    
+    .test-tube.hint { animation: hint-pulse 1.5s infinite; }
+    @keyframes hint-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.7); }
+        50% { box-shadow: 0 0 20px 5px rgba(255,255,255,0.7); }
+    }
+    .unit { width: 100%; height: 25%; }
+    .unit:first-child { border-radius: 0 0 calc(var(--tube-width) / 2 - var(--border-width)) calc(var(--tube-width) / 2 - var(--border-width)); }
+    .test-tube.tilting { transition: transform 0.4s ease-out; z-index: 10; }
+
+    .footer { text-align: center; }
+    .footer .hint-text {
+        color: var(--text-color); font-size: 2em; font-weight: bold;
+        text-shadow: 0 0 15px var(--primary-color), 0 0 20px var(--primary-color);
+        transition: opacity 0.5s ease; opacity: 1;
+    }
+    .footer .hint-text.hidden { opacity: 0; }
+    
+    /* NEW: Banner Ad Container */
+    #banner-ad-container {
+        margin: 10px auto 0;
+        width: 320px;
+        height: 50px;
+    }
+
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.7); display: none; justify-content: center;
+        align-items: center; z-index: 100; backdrop-filter: blur(5px);
+        animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .modal-content {
+        background: var(--modal-bg); color: var(--text-color); padding: 30px 40px;
+        border-radius: 20px; text-align: center; border: 2px solid var(--primary-color);
+        animation: slideIn 0.4s ease-out; width: 80%; max-width: 400px;
+    }
+    .modal-content h2 { font-size: 2.2em; margin-top: 0; margin-bottom: 15px;}
+    .modal-content p { font-size: 1.1em; margin: 10px 0; }
+    .modal-content .modal-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+    .modal-content button {
+        padding: 12px 25px; font-size: 1.1em;
+        background-color: var(--primary-color); color: var(--text-color);
+        border: none; border-radius: 10px; cursor: pointer;
+    }
+    .modal-content button.secondary { background-color: #636e72; }
+
+    .star-rating { font-size: 2.5em; margin: 10px 0; }
+    .star-rating .star { color: #576574; }
+    .star-rating .star.filled { color: #f1c40f; }
+    .settings-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin: 20px 0; font-size: 1.2em;
+    }
+    .toggle-switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #2ecc71; }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    @media (max-width: 420px) {
+        :root { --tube-width: 48px; --tube-height: 190px; }
+        .tube-row { gap: 12px; }
+        .header .level-display { font-size: 1.4em; }
+        .header .control-btn { width: 40px; height: 40px; font-size: 1.4em; }
+        .coin-display { font-size: 1em; padding: 4px 10px; }
+        .footer .hint-text { font-size: 1.6em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-screen">
+    <div class="header">
+      <div class="controls">
+        <button class="control-btn" onclick="openSettingsModal()">⚙️</button>
+        <button id="restart-btn" class="control-btn" onclick="restartLevel()">🔄</button>
+      </div>
+      <div id="level-display" class="level-display"></div>
+      <div class="game-info">
+        <div id="coin-display" class="coin-display"></div>
+        <div class="controls">
+            <button id="hint-btn" class="control-btn" onclick="useHint()">
+                <span id="hint-icon">💡</span>
+                <span id="hint-uses" class="uses-left"></span>
+            </button>
+            <button id="undo-btn" class="control-btn" onclick="undoMove()">↩️</button>
+            <button id="add-tube-btn" class="control-btn" onclick="addTube()">
+                <span id="add-tube-icon">+T</span>
+                <span id="add-tube-uses" class="uses-left"></span>
+            </button>
+        </div>
+      </div>
+    </div>
+    <div class="game-container" id="game-container"></div>
+    <div class="footer">
+      <div id="hint-text" class="hint-text"></div>
+      <div id="banner-ad-container">
+          <!-- Banner Ad Script -->
+          <script type="text/javascript">
+            atOptions = {
+                'key' : '1050f750ded4fcd7ad8e2a582025a75f',
+                'format' : 'iframe',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="//www.highperformanceformat.com/1050f750ded4fcd7ad8e2a582025a75f/invoke.js"></script>
+      </div>
+    </div>
+  </div>
+  <div id="win-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="win-title"></h2>
+        <div class="star-rating" id="star-rating"></div>
+        <p id="modal-stats"></p>
+        <p id="coin-reward"></p>
+        <button id="next-level-btn" onclick="nextLevel()"></button>
+    </div>
+  </div>
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="settings-title"></h2>
+        <div class="settings-row">
+            <span id="sound-label"></span>
+            <label class="toggle-switch"> <input type="checkbox" id="sound-toggle" onchange="toggleSound(this.checked)"> <span class="slider"></span> </label>
+        </div>
+        <button id="close-settings-btn" onclick="closeSettingsModal()"></button>
+    </div>
+  </div>
+  <!-- NEW: Ad Prompt Modal -->
+  <div id="ad-prompt-modal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="ad-prompt-title"></h2>
+        <p id="ad-prompt-desc"></p>
+        <div class="modal-buttons">
+            <button id="ad-prompt-no" class="secondary" onclick="closeAdPromptModal()"></button>
+            <button id="ad-prompt-yes" onclick="confirmAdAction()"></button>
+        </div>
+    </div>
+  </div>
+  <audio id="select-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/ui_modal_pop_up_appear.mp3" preload="auto"></audio>
+  <audio id="pour-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/liquid_pour_into_glass_a.mp3" preload="auto"></audio>
+  <audio id="win-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/multimedia_game_sound_success_generic.mp3" preload="auto"></audio>
+  <audio id="error-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/ui_error_message_generic.mp3" preload="auto"></audio>
+  <audio id="add-tube-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/multimedia_button_click_soft_001.mp3" preload="auto"></audio>
+  <audio id="coin-sound" src="https://www.zapsplat.com/wp-content/uploads/2015/sound-design/coins_single_coin_collect_01.mp3" preload="auto"></audio>
+  <script>
+    let gameState = { level: 1, tubes: [], history: [], coins: 0, freeHints: 3, freeTubes: 3 };
+    let settings = { soundEnabled: true };
+    let selectedTubeIndex = null;
+    let tubesAddedThisLevel = 0;
+    let adSuccessCallback = null;
+    const MAX_TUBES_TO_ADD = 1;
+    const AD_LINK = "https://www.profitableratecpm.com/r7kc16bg?key=8d1eac5dc1612146bd5827cf61f8863a";
+    const solidColors = ['#f1c40f', '#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#1abc9c', '#e67e22', '#ff7675', '#6ab04c', '#be2edd'];
+    const DOM = {
+        gameContainer: document.getElementById('game-container'),
+        levelDisplay: document.getElementById('level-display'),
+        hintText: document.getElementById('hint-text'),
+        undoBtn: document.getElementById('undo-btn'),
+        hintBtn: { btn: document.getElementById('hint-btn'), icon: document.getElementById('hint-icon'), uses: document.getElementById('hint-uses') },
+        addTubeBtn: { btn: document.getElementById('add-tube-btn'), icon: document.getElementById('add-tube-icon'), uses: document.getElementById('add-tube-uses') },
+        coinDisplay: document.getElementById('coin-display'),
+        winModal: document.getElementById('win-modal'),
+        settingsModal: document.getElementById('settings-modal'),
+        adPromptModal: document.getElementById('ad-prompt-modal')
+    };
+    const sounds = {
+        select: document.getElementById('select-sound'), pour: document.getElementById('pour-sound'),
+        win: document.getElementById('win-sound'), error: document.getElementById('error-sound'),
+        addTube: document.getElementById('add-tube-sound'), coin: document.getElementById('coin-sound')
+    };
+    Object.values(sounds).forEach(sound => sound.volume = 0.5);
+
+    function playSound(soundName) { if (settings.soundEnabled && sounds[soundName]) { sounds[soundName].currentTime = 0; sounds[soundName].play().catch(e => {}); } }
+
+    function generateLevel(level) {
+        const colorCount = Math.min(3 + Math.floor(level / 2), solidColors.length);
+        let tubeCount = Math.min(6 + Math.floor(level / 3) * 2, 12);
+        if (tubeCount % 2 !== 0 && tubeCount < 12) tubeCount++;
+        let generatedTubes, isSolved = true;
+        while(isSolved) {
+            let solvedTubes = Array.from({length: colorCount}, (_, i) => Array(4).fill(solidColors[i]));
+            solvedTubes.push(...Array(tubeCount - colorCount).fill([]));
+            let shuffledTubes = JSON.parse(JSON.stringify(solvedTubes));
+            const shuffleMoves = level * 10 + 40;
+            for (let i = 0; i < shuffleMoves; i++) {
+                const potentialFrom = shuffledTubes.map((t, i) => t.length > 0 ? i : -1).filter(i => i !== -1);
+                const potentialTo = shuffledTubes.map((t, i) => t.length < 4 ? i : -1).filter(i => i !== -1);
+                if (potentialFrom.length < 2) break;
+                let fromIndex = potentialFrom[Math.floor(Math.random() * potentialFrom.length)];
+                let toIndex;
+                do { toIndex = potentialTo[Math.floor(Math.random() * potentialTo.length)]; } while (fromIndex === toIndex);
+                if (shuffledTubes[fromIndex].length > 0 && shuffledTubes[toIndex].length < 4) {
+                    shuffledTubes[toIndex].push(shuffledTubes[fromIndex].pop());
+                }
+            }
+            generatedTubes = shuffledTubes;
+            isSolved = isPuzzleSolved(generatedTubes);
+        }
+        gameState.tubes = generatedTubes;
+        gameState.history = [];
+        selectedTubeIndex = null;
+        tubesAddedThisLevel = 0;
+        gameState.freeHints = 3;
+        gameState.freeTubes = 3;
+        DOM.winModal.style.display = 'none';
+        saveGame();
+        render();
+    }
+    
+    function isPuzzleSolved(puzzleState) { return puzzleState.every(tube => tube.length === 0 || (tube.length === 4 && new Set(tube).size === 1)); }
+    
+    async function handleTubeClick(i) {
+        if (selectedTubeIndex === null) {
+            if (gameState.tubes[i].length > 0) {
+                selectedTubeIndex = i; playSound('select');
+            }
+        } else {
+            if (selectedTubeIndex !== i) await pourWater(selectedTubeIndex, i);
+            selectedTubeIndex = null;
+        }
+        render();
+    }
+    
+    async function pourWater(fromIndex, toIndex) { /* ... same as previous version ... */ const fromTube = gameState.tubes[fromIndex], toTube = gameState.tubes[toIndex]; const { unitsToMove, pourColor } = getPourableUnits(fromTube); if (unitsToMove === 0 || !canPour(fromTube, toTube, pourColor)) { playSound('error'); return; } DOM.hintText.classList.add('hidden'); const availableSpace = 4 - toTube.length, actualMoveCount = Math.min(unitsToMove, availableSpace); if (actualMoveCount === 0) return; gameState.history.push(JSON.parse(JSON.stringify(gameState.tubes))); await animatePour(fromIndex, toIndex); const movedUnits = fromTube.splice(fromTube.length - actualMoveCount, actualMoveCount); toTube.push(...movedUnits); if (isPuzzleSolved(gameState.tubes)) checkWin(); saveGame(); render(); }
+    function getPourableUnits(fromTube) { if (fromTube.length === 0) return { unitsToMove: 0, pourColor: null }; const pourColor = fromTube[fromTube.length - 1]; let unitsToMove = 0; for (let i = fromTube.length - 1; i >= 0 && fromTube[i] === pourColor; i--) unitsToMove++; return { unitsToMove, pourColor }; }
+    function canPour(fromTube, toTube, pourColor) { return toTube.length < 4 && (toTube.length === 0 || toTube[toTube.length - 1] === pourColor); }
+    
+    function updateDisplays() {
+        DOM.levelDisplay.innerText = `Level: ${gameState.level}`;
+        DOM.hintText.innerText = `Tap to Pour`;
+        DOM.coinDisplay.innerText = `🪙 ${gameState.coins}`;
+        DOM.undoBtn.classList.toggle('disabled', gameState.history.length === 0);
+        
+        DOM.hintBtn.uses.innerText = gameState.freeHints;
+        DOM.hintBtn.uses.style.display = gameState.freeHints > 0 ? 'flex' : 'none';
+        DOM.hintBtn.icon.innerText = gameState.freeHints > 0 ? '💡' : '▶️';
+        
+        DOM.addTubeBtn.uses.innerText = gameState.freeTubes;
+        DOM.addTubeBtn.uses.style.display = gameState.freeTubes > 0 ? 'flex' : 'none';
+        DOM.addTubeBtn.icon.innerText = gameState.freeTubes > 0 ? '+T' : '▶️';
+        DOM.addTubeBtn.btn.classList.toggle('disabled', tubesAddedThisLevel >= MAX_TUBES_TO_ADD);
+
+        document.getElementById('win-title').innerText = "🎉 Awesome! 🎉";
+        document.getElementById('next-level-btn').innerText = "➡️ Next Level";
+        document.getElementById('settings-title').innerText = "Settings";
+        document.getElementById('sound-label').innerText = "Sound";
+        document.getElementById('close-settings-btn').innerText = "Close";
+    }
+
+    function render() {
+      DOM.gameContainer.innerHTML = '';
+      const topRow = document.createElement('div'); topRow.className = 'tube-row';
+      const bottomRow = document.createElement('div'); bottomRow.className = 'tube-row';
+      const splitIndex = Math.ceil(gameState.tubes.length / 2);
+      gameState.tubes.forEach((tubeContent, i) => {
+        const div = document.createElement('div');
+        div.className = 'test-tube';
+        div.dataset.id = i;
+        if (selectedTubeIndex === i) div.classList.add('selected');
+        div.onclick = () => handleTubeClick(i);
+        tubeContent.forEach(color => {
+          const unit = document.createElement('div');
+          unit.className = 'unit';
+          unit.style.backgroundColor = color;
+          div.appendChild(unit);
+        });
+        if (i < splitIndex) topRow.appendChild(div); 
+        else bottomRow.appendChild(div);
+      });
+      DOM.gameContainer.appendChild(topRow);
+      DOM.gameContainer.appendChild(bottomRow);
+      updateDisplays();
+    }
+    
+    function animatePour(fromIndex, toIndex) { /* ... same as previous version ... */ return new Promise(resolve => { document.body.classList.add('pouring-in-progress'); playSound('pour'); const fromEl = document.querySelector(`.test-tube[data-id='${fromIndex}']`); const toEl = document.querySelector(`.test-tube[data-id='${toIndex}']`); const isPouringRight = toEl.getBoundingClientRect().left > fromEl.getBoundingClientRect().left; const tiltAngle = isPouringRight ? 80 : -80; fromEl.style.transformOrigin = isPouringRight ? 'bottom left' : 'bottom right'; fromEl.classList.add('tilting'); const baseTransform = fromEl.classList.contains('selected') ? 'translateY(-30px) scale(1.1)' : ''; fromEl.style.transform = `${baseTransform} rotate(${tiltAngle}deg)`; setTimeout(() => { fromEl.classList.remove('tilting'); fromEl.style.transform = fromEl.classList.contains('selected') ? 'translateY(-30px) scale(1.1)' : ''; fromEl.style.transformOrigin = 'center'; document.body.classList.remove('pouring-in-progress'); resolve(); }, 600); }); }
+
+    function openAdPromptModal(title, desc, onConfirm) {
+        document.getElementById('ad-prompt-title').innerText = title;
+        document.getElementById('ad-prompt-desc').innerText = desc;
+        document.getElementById('ad-prompt-yes').innerText = "Yes";
+        document.getElementById('ad-prompt-no').innerText = "No";
+        adSuccessCallback = onConfirm;
+        DOM.adPromptModal.style.display = 'flex';
+    }
+    function closeAdPromptModal() { DOM.adPromptModal.style.display = 'none'; adSuccessCallback = null; }
+    function confirmAdAction() {
+        closeAdPromptModal();
+        window.open(AD_LINK, '_blank');
+        if (adSuccessCallback) adSuccessCallback();
+    }
+
+    function useHint() {
+        if (gameState.freeHints > 0) {
+            gameState.freeHints--;
+            findAndShowHint();
+        } else {
+            openAdPromptModal("Watch Ad?", "Watch an ad to get a free hint.", findAndShowHint);
+        }
+        saveGame(); updateDisplays();
+    }
+    
+    function findAndShowHint() {
+        for (let i = 0; i < gameState.tubes.length; i++) {
+            const fromTube = gameState.tubes[i];
+            if (fromTube.length === 0 || (fromTube.length === 4 && new Set(fromTube).size === 1)) continue;
+            const { pourColor } = getPourableUnits(fromTube);
+            for (let j = 0; j < gameState.tubes.length; j++) {
+                if (i === j) continue;
+                if (canPour(fromTube, gameState.tubes[j], pourColor)) {
+                    playSound('select');
+                    const fromEl = document.querySelector(`.test-tube[data-id='${i}']`);
+                    const toEl = document.querySelector(`.test-tube[data-id='${j}']`);
+                    fromEl.classList.add('hint'); toEl.classList.add('hint');
+                    setTimeout(() => { fromEl.classList.remove('hint'); toEl.classList.remove('hint'); }, 1500);
+                    return;
+                }
+            }
+        }
+        playSound('error');
+    }
+
+    function addTube() {
+        if (tubesAddedThisLevel >= MAX_TUBES_TO_ADD) { playSound('error'); return; }
+        const executeAdd = () => {
+            playSound('addTube');
+            gameState.tubes.push([]);
+            tubesAddedThisLevel++;
+            saveGame(); render();
+        };
+        if (gameState.freeTubes > 0) {
+            gameState.freeTubes--;
+            executeAdd();
+        } else {
+            openAdPromptModal("Watch Ad?", "Watch an ad to get a new tube.", executeAdd);
+        }
+        saveGame(); updateDisplays();
+    }
+
+    function restartLevel() { generateLevel(gameState.level); }
+    function undoMove() { if (gameState.history.length > 0) { gameState.tubes = gameState.history.pop(); selectedTubeIndex = null; saveGame(); render(); } }
+    function nextLevel() { gameState.level++; generateLevel(gameState.level); }
+    
+    function checkWin() {
+        playSound('win');
+        const moves = gameState.history.length;
+        const baseMoves = gameState.tubes.length * 2.5;
+        let stars = moves <= baseMoves ? 3 : (moves <= baseMoves * 1.5 ? 2 : 1);
+        const coinReward = stars * 10;
+        gameState.coins += coinReward; playSound('coin');
+        document.getElementById('star-rating').innerHTML = Array(3).fill(0).map((_, i) => `<span class="star ${i < stars ? 'filled' : ''}">⭐</span>`).join('');
+        document.getElementById('modal-stats').innerText = `Completed in ${moves} moves.`;
+        document.getElementById('coin-reward').innerText = `You got 🪙 ${coinReward} coins!`;
+        DOM.winModal.style.display = 'flex';
+        saveGame();
+    }
+
+    function openSettingsModal() { DOM.settingsModal.style.display = 'flex'; }
+    function closeSettingsModal() { DOM.settingsModal.style.display = 'none'; }
+    function toggleSound(enabled) { settings.soundEnabled = enabled; saveSettings(); }
+    
+    function saveGame() { localStorage.setItem('waterSortGameState', JSON.stringify(gameState)); }
+    function loadGame() { if (localStorage.getItem('waterSortGameState')) gameState = JSON.parse(localStorage.getItem('waterSortGameState')); }
+    function saveSettings() { localStorage.setItem('waterSortSettings', JSON.stringify(settings)); }
+    function loadSettings() {
+        if (localStorage.getItem('waterSortSettings')) settings = JSON.parse(localStorage.getItem('waterSortSettings'));
+        document.getElementById('sound-toggle').checked = settings.soundEnabled;
+    }
+
+    window.onload = () => { loadSettings(); loadGame(); generateLevel(gameState.level); };
+  </script>
+</body>
+</html>
